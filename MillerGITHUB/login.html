@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Рейтинг - Вход</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #ffd700;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .login-header i {
+            font-size: 3em;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .login-header p {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            color: white;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ffd700;
+            background: rgba(255,255,255,0.15);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .error-message {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            border: none;
+            border-radius: 15px;
+            color: #1a1a2e;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255,215,0,0.3);
+        }
+
+        .login-btn i {
+            margin-right: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #ffd700;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .loading i {
+            margin-right: 5px;
+        }
+        
+                .register-info {
+    margin-top: 25px;
+    padding: 15px 20px;
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #ffd700;
+    font-size: 0.95em;
+    backdrop-filter: blur(5px);
+    animation: fadeIn 0.5s ease;
+}
+
+.register-info i {
+    font-size: 1.2em;
+    color: #ffd700;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.register-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.register-text div:first-child {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.register-text div:last-child {
+    opacity: 0.9;
+    font-size: 0.95em;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <i class="fas fa-crown"></i>
+            <h1>Mafia Рейтинг</h1>
+            <p>Войдите в систему</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label><i class="fas fa-user"></i> Логин</label>
+                <input type="text" id="username" placeholder="Введите логин" required>
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> Пароль</label>
+                <input type="password" id="password" placeholder="Введите пароль" required>
+            </div>
+
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> Войти
+            </button>
+        </form>
+
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner fa-spin"></i> Вход в систему...
+        </div>
+
+        <div class="register-info">
+    <i class="fas fa-user-plus"></i>
+    <span>Нет аккаунта? <a href="register.html" style="color:#ffd700; text-decoration:none; font-weight:bold;">Зарегистрироваться</a></span>
+</div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loadingDiv = document.getElementById('loading');
+            
+            // Показываем загрузку
+            loadingDiv.classList.add('show');
+            errorDiv.classList.remove('show');
+            
+            try {
+                const response = await fetch('auth_api.php?action=login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Сохраняем информацию о пользователе
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    
+                    // Перенаправляем на главную
+                    window.location.href = 'index.html';
+                } else {
+                    errorDiv.textContent = data.error || 'Ошибка при входе';
+                    errorDiv.classList.add('show');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Ошибка соединения с сервером';
+                errorDiv.classList.add('show');
+            } finally {
+                loadingDiv.classList.remove('show');
+            }
+        });
+        
+        // Проверяем, не залогинен ли уже пользователь
+        async function checkSession() {
+            try {
+                const response = await fetch('auth_api.php?action=check_session');
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                console.error('Session check failed:', error);
+            }
+        }
+        
+        checkSession();
+        
+        if (localStorage.getItem('registrationSuccess') === 'true') {
+    const errorDiv = document.getElementById('errorMessage');
+    errorDiv.textContent = '✅ Регистрация успешна! Теперь вы можете войти.';
+    errorDiv.style.background = 'rgba(46, 204, 113, 0.2)';
+    errorDiv.style.borderColor = '#2ecc71';
+    errorDiv.style.color = '#2ecc71';
+    errorDiv.classList.add('show');
+    localStorage.removeItem('registrationSuccess');
+}
+    </script>
+</body>
+</html>

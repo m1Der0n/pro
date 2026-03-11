@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mafia Рейтинг | Детальная статистика</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+    /* === КОМПАКТНОЕ МОДАЛЬНОЕ ОКНО (ПЕРЕОПРЕДЕЛЕНИЕ) === */
+    #playerModal .modal-content {
+        max-width: 380px !important;
+        padding: 15px !important;
+    }
+    #playerModal .modal-header h2 {
+        font-size: 1.3em !important;
+    }
+    #playerModal #modal-content .avatar-large {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 1.6em !important;
+        margin: 0 auto 10px !important;
+    }
+    #playerModal #modal-content div[style*="font-size:2em"] {
+        font-size: 1.3em !important;
+    }
+    #playerModal #modal-content div[style*="gap:20px"] {
+        gap: 8px !important;
+        font-size: 0.85em !important;
+    }
+    #playerModal .bonus-details {
+        gap: 5px !important;
+        margin: 5px 0 !important;
+    }
+    #playerModal .bonus-detail-row {
+        padding: 6px 10px !important;
+    }
+    #playerModal .bonus-detail-icon {
+        width: 24px !important;
+        font-size: 1.1em !important;
+    }
+    #playerModal .bonus-detail-label {
+        font-size: 0.9em !important;
+    }
+    #playerModal .bonus-detail-value {
+        font-size: 0.95em !important;
+        min-width: 40px !important;
+    }
+    /* Блок побед по командам */
+    #playerModal div[style*="border-top"] h4 {
+        font-size: 1em !important;
+        margin-bottom: 5px !important;
+    }
+    #playerModal div[style*="justify-content: space-around"] {
+        font-size: 0.9em !important;
+    }
+    #playerModal div[style*="margin-top:20px"] {
+        margin-top: 10px !important;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <i class="fas fa-crown"></i>
+                Mafia Рейтинг
+            </h1>
+            <div class="subtitle">
+                <span><i class="fas fa-users"></i> <span id="total-players">0</span> игроков</span>
+                <span><i class="fas fa-gamepad"></i> <span id="total-games">0</span> игр</span>
+            </div>
+        </header>
+
+        <div class="top-players" id="top-players"></div>
+
+        <div class="players-list">
+            <div class="list-header">
+                <h2><i class="fas fa-list"></i> Все игроки</h2>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Поиск игрока...">
+                </div>
+            </div>
+
+            <div id="players-list">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Загрузка данных...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для детальной статистики -->
+    <div class="modal" id="playerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-player-name"></h2>
+                <span class="close-modal" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let allPlayers = [];
+        
+        console.log('Скрипт загружен');
+        
+        window.debugAuth = async function() {
+            const response = await fetch('auth_api.php?action=check_session');
+            const data = await response.json();
+            console.log('Auth check result:', data);
+            return data;
+        }
+        
+        // Проверка авторизации при загрузке страницы
+        async function checkAuth() {
+            try {
+                const response = await fetch('auth_api.php?action=check_session');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                window.currentUser = data.data.user;
+                addUserControls();
+                
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = 'login.html';
+            }
+        }
+        
+        function addUserControls() {
+    setTimeout(() => {
+        const header = document.querySelector('header');
+        if (!header) {
+            console.log('Header not found, retrying...');
+            setTimeout(addUserControls, 1000);
+            return;
+        }
+        
+        const oldControls = document.getElementById('user-controls');
+        if (oldControls) oldControls.remove();
+        
+        const userControls = document.createElement('div');
+        userControls.id = 'user-controls';
+        userControls.style.cssText = `
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 50px;
+            position: relative;
+            z-index: 100;
+        `;
+        
+        // Определяем цвет и текст в зависимости от роли
+        let roleColor, roleText;
+        if (window.currentUser.role === 'admin') {
+            roleColor = '#ffd700';
+            roleText = '👑 Админ';
+        } else if (window.currentUser.role === 'player') {
+            roleColor = '#3498db';
+            roleText = '🎮 Игрок';
+        } else { // guest
+            roleColor = '#4ecdc4';
+            roleText = '👤 Гость';
+        }
+        
+        userControls.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-user-circle" style="font-size: 1.5em; color: ${roleColor};"></i>
+                <span style="color: white; font-weight: bold;">${window.currentUser.username}</span>
+                <span style="background: ${roleColor}; color: #1a1a2e; padding: 3px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold;">
+                    ${roleText}
+                </span>
+            </div>
+            ${window.currentUser.role === 'admin' ? `
+                <a href="admin_users.html" style="color: white; text-decoration: none; padding: 5px 15px; background: rgba(255,215,0,0.2); border-radius: 20px; display: flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-users-cog" style="color: #ffd700;"></i> Управление
+                </a>
+            ` : ''}
+            <button onclick="logout()" style="background: none; border: 1px solid #ffd700; color: #ffd700; padding: 5px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-sign-out-alt"></i> Выйти
+            </button>
+        `;
+        
+        header.appendChild(userControls);
+        console.log('User controls added successfully');
+        
+    }, 500);
+}
+        
+        async function logout() {
+            try {
+                await fetch('auth_api.php?action=logout');
+                localStorage.removeItem('user');
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+
+        function sortPlayers(players) {
+            return [...players].sort((a, b) => {
+                if (b.score !== a.score) {
+                    return b.score - a.score;
+                }
+                return (a.id || 0) - (b.id || 0);
+            });
+        }
+
+        async function loadPlayers() {
+            try {
+                const response = await fetch('http://s953066i.beget.tech/api.php?' + new Date().getTime());
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                allPlayers = sortPlayers(data);
+                
+                console.log('=== ОТСОРТИРОВАННЫЙ СПИСОК ===');
+                allPlayers.slice(0, 5).forEach((p, i) => {
+                    console.log(`${i+1}. ${p.name} (ID: ${p.id}, рейтинг: ${p.score})`);
+                });
+                
+                displayTopPlayers();
+                displayAllPlayers();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('players-list').innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Ошибка загрузки</h3>
+                        <p>${error.message}</p>
+                        <button onclick="loadPlayers()" style="margin-top:20px; padding:10px 30px; background:#ffd700; border:none; border-radius:30px; cursor:pointer;">
+                            <i class="fas fa-sync-alt"></i> Повторить
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayTopPlayers() {
+            const topPlayers = allPlayers.slice(0, 3);
+            const topContainer = document.getElementById('top-players');
+            
+            if (topPlayers.length === 0) return;
+
+            const medals = ['🥇', '🥈', '🥉'];
+            
+            topContainer.innerHTML = topPlayers.map((player, index) => {
+                const place = index + 1;
+                
+                return `
+                    <div class="top-card" style="order: ${index === 0 ? 0 : (index === 1 ? -1 : 1)};" onclick="showPlayerDetails(${player.id})">
+                        <div class="crown">${medals[index]}</div>
+                        <div class="avatar-large" style="background: ${player.avatar_color || 'linear-gradient(135deg, #667eea, #764ba2)'}">
+                            ${player.avatar || (player.name ? player.name.charAt(0).toUpperCase() : '?')}
+                        </div>
+                        <div class="player-name-large">${player.name || 'Без имени'}</div>
+                        <div style="font-size: 1.2em; color: #ffd700; margin-bottom: 5px;">${place} МЕСТО</div>
+                        <div class="player-stats-large">
+                            <span><i class="fas fa-gamepad"></i> ${player.total_games || 0}</span>
+                            <span><i class="fas fa-trophy"></i> ${player.total_wins || 0}</span>
+                            <span class="win-rate">🏆 ${player.win_rate || 0}%</span>
+                        </div>
+                        <div class="player-score-large">
+                            <i class="fas fa-star"></i> ${(player.score || 0).toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log('ТОП-3:', topPlayers.map(p => `${p.name} (${p.score})`));
+        }
+
+        function displayAllPlayers() {
+            const maxScore = allPlayers.length > 0 ? Math.max(...allPlayers.map(p => p.score || 0)) : 1;
+            const listContainer = document.getElementById('players-list');
+            
+            if (allPlayers.length === 0) {
+                listContainer.innerHTML = '<div class="error">Нет игроков</div>';
+                return;
+            }
+
+            listContainer.innerHTML = allPlayers.map((player, index) => {
+                const rank = index + 1;
+                const percentage = ((player.score || 0) / maxScore) * 100;
+                
+                let medalIcon = '';
+                if (rank === 1) medalIcon = '🥇';
+                else if (rank === 2) medalIcon = '🥈';
+                else if (rank === 3) medalIcon = '🥉';
+                
+                return `
+                    <div class="player-item" onclick="showPlayerDetails(${player.id})" style="cursor:pointer">
+                        <div class="rank rank-${rank}">#${rank}</div>
+                        
+                        <div class="player-avatar" style="background: ${player.avatar_color || 'linear-gradient(135deg, #667eea, #764ba2)'}">
+                            ${player.avatar || (player.name ? player.name.charAt(0).toUpperCase() : '?')}
+                        </div>
+                        
+                        <div class="player-info">
+    <div class="player-name">${player.name || 'Без имени'}</div>
+    <div class="player-meta">
+        <span><i class="fas fa-gamepad"></i> Игр: ${player.total_games || 0}</span>
+        <span><i class="fas fa-trophy"></i> Побед: ${player.total_wins || 0}</span>
+    </div>
+    <!-- НОВЫЙ БЛОК: победы по командам -->
+    <div style="display: flex; gap: 15px; margin-top: 5px; font-size: 0.85em;">
+        <span><i class="fas fa-skull" style="color: #ff6b6b;"></i> Мафия: <strong>${player.total_wins_mafia || 0}</strong></span>
+        <span><i class="fas fa-users" style="color: #4ecdc4;"></i> Мирные: <strong>${player.total_wins_civilian || 0}</strong></span>
+    </div>
+</div>
+                        <div class="player-bonuses">
+                            <div class="bonus-row">
+                                <span class="bonus-icon win"><i class="fas fa-trophy"></i></span>
+                                <span class="bonus-label">За победу:</span>
+                                <span class="bonus-value">${(player.total_win_bonus || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon don"><i class="fas fa-skull"></i></span>
+                                <span class="bonus-label">За дона:</span>
+                                <span class="bonus-value">${(player.total_don_bonus || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon sheriff"><i class="fas fa-star"></i></span>
+                                <span class="bonus-label">За шерифа:</span>
+                                <span class="bonus-value">${(player.total_sheriff_bonus || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon doctor"><i class="fas fa-heartbeat"></i></span>
+                                <span class="bonus-label">За доктора:</span>
+                                <span class="bonus-value">${(player.total_doctor_bonus || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon kill"><i class="fas fa-crosshairs"></i></span>
+                                <span class="bonus-label">За убийства:</span>
+                                <span class="bonus-value">${(player.total_kill_bonus || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon accusation"><i class="fas fa-gavel"></i></span>
+                                <span class="bonus-label">За выставления:</span>
+                                <span class="bonus-value">${(player.total_accusation_points || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon vote"><i class="fas fa-check-circle"></i></span>
+                                <span class="bonus-label">За голоса:</span>
+                                <span class="bonus-value">${(player.total_vote_points || 0).toFixed(2)}</span>
+                            </div>
+                            <div class="bonus-row">
+                                <span class="bonus-icon best"><i class="fas fa-chess-queen"></i></span>
+                                <span class="bonus-label">За ЛХ:</span>
+                                <span class="bonus-value">${(player.total_best_move_bonus || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="player-rating">
+                            <div class="rating-value">${(player.score || 0).toFixed(2)}</div>
+                            <div class="rating-label">общий рейтинг</div>
+                            <div class="progress-bar">
+                                <div class="progress" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('total-players').textContent = allPlayers.length;
+            
+            const totalGames = allPlayers.length > 0 ? (allPlayers[0].total_games_count || 0) : 0;
+            document.getElementById('total-games').textContent = totalGames;
+        }
+
+        function showPlayerDetails(playerId) {
+    const player = allPlayers.find(p => p.id === playerId);
+    if (!player) return;
+    
+    const modal = document.getElementById('playerModal');
+    document.getElementById('modal-player-name').textContent = player.name || 'Без имени';
+    
+    document.getElementById('modal-content').innerHTML = `
+        <div style="text-align:center; margin-bottom:15px">
+            <div class="avatar-large" style="background:${player.avatar_color || 'linear-gradient(135deg, #667eea, #764ba2)'}; margin:0 auto 15px; width:70px; height:70px; font-size:1.8em">
+                ${player.avatar || (player.name ? player.name.charAt(0).toUpperCase() : '?')}
+            </div>
+            <div style="font-size:1.5em; color:#ffd700; margin-bottom:5px">
+                <i class="fas fa-star"></i> ${(player.score || 0).toFixed(2)}
+            </div>
+            <div style="display:flex; justify-content:center; gap:15px; margin-bottom:10px; font-size:0.9em">
+                <div><i class="fas fa-gamepad"></i> Игр: ${player.total_games || 0}</div>
+                <div><i class="fas fa-trophy"></i> Побед: ${player.total_wins || 0}</div>
+                <div><i class="fas fa-chart-line"></i> ${player.win_rate || 0}%</div>
+            </div>
+        </div>
+        
+        <!-- БЛОК ПОБЕД ПО КОМАНДАМ (теперь сразу под статистикой) -->
+        <div style="margin-bottom: 15px; border-top: 1px solid rgba(255,215,0,0.3); padding-top: 10px;">
+            <div style="display: flex; justify-content: space-around; font-size: 1em;">
+                <div><i class="fas fa-skull" style="color: #ff6b6b; margin-right: 5px;"></i> Мафия: <strong>${player.total_wins_mafia || 0}</strong></div>
+                <div><i class="fas fa-users" style="color: #4ecdc4; margin-right: 5px;"></i> Мирные: <strong>${player.total_wins_civilian || 0}</strong></div>
+            </div>
+        </div>
+        
+        <h3 style="margin-bottom:10px; font-size:1.1em">Детальная статистика бонусов</h3>
+        <div class="bonus-details">
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon win"><i class="fas fa-trophy"></i></span>
+                <span class="bonus-detail-label">За победу</span>
+                <span class="bonus-detail-value">${(player.total_win_bonus || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon don"><i class="fas fa-skull"></i></span>
+                <span class="bonus-detail-label">За дона</span>
+                <span class="bonus-detail-value">${(player.total_don_bonus || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon sheriff"><i class="fas fa-star"></i></span>
+                <span class="bonus-detail-label">За шерифа</span>
+                <span class="bonus-detail-value">${(player.total_sheriff_bonus || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon doctor"><i class="fas fa-heartbeat"></i></span>
+                <span class="bonus-detail-label">За доктора</span>
+                <span class="bonus-detail-value">${(player.total_doctor_bonus || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon kill"><i class="fas fa-crosshairs"></i></span>
+                <span class="bonus-detail-label">За убийства</span>
+                <span class="bonus-detail-value">${(player.total_kill_bonus || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon accusation"><i class="fas fa-gavel"></i></span>
+                <span class="bonus-detail-label">За выставления</span>
+                <span class="bonus-detail-value">${(player.total_accusation_points || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon vote"><i class="fas fa-check-circle"></i></span>
+                <span class="bonus-detail-label">За голоса</span>
+                <span class="bonus-detail-value">${(player.total_vote_points || 0).toFixed(2)}</span>
+            </div>
+            <div class="bonus-detail-row">
+                <span class="bonus-detail-icon best"><i class="fas fa-chess-queen"></i></span>
+                <span class="bonus-detail-label">За лучший ход</span>
+                <span class="bonus-detail-value">${(player.total_best_move_bonus || 0).toFixed(2)}</span>
+            </div>
+        </div>
+        
+        <div style="margin-top:15px; text-align:center; color:rgba(255,255,255,0.5); font-size:0.8em">
+            <i class="fas fa-clock"></i> Обновлено: ${new Date((player.last_update || 0) * 1000).toLocaleString()}
+        </div>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+        function closeModal() {
+            document.getElementById('playerModal').style.display = 'none';
+        }
+
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            if (searchTerm === '') {
+                displayAllPlayers();
+            } else {
+                const filtered = allPlayers.filter(p => 
+                    p.name && p.name.toLowerCase().includes(searchTerm)
+                );
+                
+                const maxScore = filtered.length > 0 ? Math.max(...filtered.map(p => p.score || 0)) : 1;
+                const listContainer = document.getElementById('players-list');
+                
+                listContainer.innerHTML = filtered.map((player) => {
+                    const rank = allPlayers.findIndex(p => p.id === player.id) + 1;
+                    const percentage = ((player.score || 0) / maxScore) * 100;
+                    
+                    return `
+                        <div class="player-item" onclick="showPlayerDetails(${player.id})" style="cursor:pointer">
+                            <div class="rank rank-${rank}">#${rank}</div>
+                            <div class="player-avatar" style="background: ${player.avatar_color || 'linear-gradient(135deg, #667eea, #764ba2)'}">${player.avatar || (player.name ? player.name.charAt(0).toUpperCase() : '?')}</div>
+                            <div class="player-info">
+                                <div class="player-name">${player.name || 'Без имени'}</div>
+                                <div class="player-meta">
+                                    <span><i class="fas fa-gamepad"></i> Игр: ${player.total_games || 0}</span>
+                                    <span><i class="fas fa-trophy"></i> Побед: ${player.total_wins || 0}</span>
+                                </div>
+                            <!-- НОВЫЙ БЛОК: победы по командам -->
+    <div style="display: flex; gap: 15px; margin-top: 5px; font-size: 0.85em;">
+        <span><i class="fas fa-skull" style="color: #ff6b6b;"></i> Мафия: <strong>${player.total_wins_mafia || 0}</strong></span>
+        <span><i class="fas fa-users" style="color: #4ecdc4;"></i> Мирные: <strong>${player.total_wins_civilian || 0}</strong></span>
+    </div>
+</div>
+                            <div class="player-rating">
+                                <div class="rating-value">${(player.score || 0).toFixed(2)}</div>
+                                <div class="progress-bar"><div class="progress" style="width: ${percentage}%"></div></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        });
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('playerModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            await checkAuth();
+            loadPlayers();
+        });
+        
+        setInterval(loadPlayers, 30000);
+    </script>
+</body>
+</html>
